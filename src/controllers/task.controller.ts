@@ -38,23 +38,41 @@ export const getTasks = async (req: any, res: any) => {
   try {
     const userRole = req.user.role;
     let tasks = [];
-    let filterObj:any ={}
-    
+    let filterObj: any = {};
+
     if (userRole === "admin") {
-        if (req.query.search && req.query.search !== null) {
-            filterObj["title"] = { $regex: req.query.search, $options: "i" };
-          }
-          
-          if (req.query.status && req.query.status !== null) {
-            filterObj["status"] = { $regex: req.query.status, $options: "i" };
-          }
+      if (req.query.search && req.query.search !== null) {
+        filterObj["title"] = { $regex: req.query.search, $options: "i" };
+      }
+
+      if (req.query.status && req.query.status !== null) {
+        filterObj["status"] = { $regex: req.query.status, $options: "i" };
+      }
       console.log("filter obj", JSON.stringify(filterObj));
-      
+
+      tasks = await Task.find(filterObj, {
+        title: 1,
+        id: 1,
+        _id: 0,
+        description: 1,
+        status: 1,
+        dueDate: 1,
+        assignees: 1,
+        creator: 1,
+      }).skip(req.query.page - 1).limit(req.query.limit);
+    } else {
+      if (req.query.search && req.query.search !== null) {
+        filterObj["title"] = { $regex: req.query.search, $options: "i" };
+      }
+
+      if (req.query.status && req.query.status !== null) {
+        filterObj["status"] = { $regex: req.query.status, $options: "i" };
+      }
       tasks = await Task.find(
-        filterObj,
+        { ...filterObj, creator: req.user.id },
         {
           title: 1,
-          id:1,
+          id: 1,
           _id: 0,
           description: 1,
           status: 1,
@@ -63,75 +81,98 @@ export const getTasks = async (req: any, res: any) => {
           creator: 1,
         }
       );
-    } else {
-        if (req.query.search && req.query.search !== null) {
-            filterObj["title"] = { $regex: req.query.search, $options: "i" };
-          }
-          
-          if (req.query.status && req.query.status !== null) {
-            filterObj["status"] = { $regex: req.query.status, $options: "i" };
-          }
-        tasks = await Task.find(
-            {...filterObj, creator:req.user.id},
-            {
-              title: 1,
-              id:1,
-              _id: 0,
-              description: 1,
-              status: 1,
-              dueDate: 1,
-              assignees: 1,
-              creator: 1,
-            }
-          );
     }
-    return res.status(200).json({"message":"successfully fetched tasks list","data":tasks})
+    return res
+      .status(200)
+      .json({ message: "successfully fetched tasks list", data: tasks });
   } catch (error) {
     console.error("Error occoured to fetch tasks list", error);
-    return res.status(500).json({"error":"Error occoured to fetch tasks list"})   
+    return res
+      .status(500)
+      .json({ error: "Error occoured to fetch tasks list" });
   }
 };
 
-export const getTaskById = async (req:any, res:any) => {
-    try {
-        const taskId = req.params.id;
-        const taskDetails = await Task.findOne({id:taskId}, {id:1, _id:0, title:1, description:1, status:1, dueDate:1, creator:1, assignees:1})
-        return res.status(200).json({"message":"successfully fetched task details", data:taskDetails}) 
-    } catch (error) {
-        console.error("Error occoured to fetch task by id", error);
-        return res.status(500).json({"error":"Error occoured to fetch task by id"})
-    }
-}
+export const getTaskById = async (req: any, res: any) => {
+  try {
+    const taskId = req.params.id;
+    const taskDetails = await Task.findOne(
+      { id: taskId },
+      {
+        id: 1,
+        _id: 0,
+        title: 1,
+        description: 1,
+        status: 1,
+        dueDate: 1,
+        creator: 1,
+        assignees: 1,
+      }
+    );
+    return res
+      .status(200)
+      .json({
+        message: "successfully fetched task details",
+        data: taskDetails,
+      });
+  } catch (error) {
+    console.error("Error occoured to fetch task by id", error);
+    return res
+      .status(500)
+      .json({ error: "Error occoured to fetch task by id" });
+  }
+};
 
-export const updateTask = async (req:any, res:any) => {
-    try {
-        const taskId = req.params.id
-        const {title, status, description, dueDate, assignees} = req.body
-        if(req.user.role === "admin") {
-            await Task.findOneAndUpdate({id:taskId}, {"$set":{title:title, status:status,description:description, dueDate:dueDate,assignees:assignees}})
-        } else {
-            await Task.findOneAndUpdate({id:taskId, creator:req.user.id}, {"$set":{title:title, status:status,description:description, dueDate:dueDate,assignees:assignees}})
+export const updateTask = async (req: any, res: any) => {
+  try {
+    const taskId = req.params.id;
+    const { title, status, description, dueDate, assignees } = req.body;
+    if (req.user.role === "admin") {
+      await Task.findOneAndUpdate(
+        { id: taskId },
+        {
+          $set: {
+            title: title,
+            status: status,
+            description: description,
+            dueDate: dueDate,
+            assignees: assignees,
+          },
         }
-
-        return res.status(202).json({"message":"Successfully updated task"})
-    } catch (error) {
-        console.error("error occoured to update task");
-        
-    }
-}
-
-export const deleteTask = async (req:any, res:any) => {
-    try {
-        const taskId = req.params.id
-        if (req.user.role === "admin") {
-            await Task.findOneAndDelete({id:taskId})
-            return res.status(202).json({"message":"Successfully deleted task"})
-        } else {
-            await Task.findOneAndDelete({id:taskId, creator:req.user.id})
-            return res.status(202).json({"message":"Successfully deleted task"})
+      );
+    } else {
+      await Task.findOneAndUpdate(
+        { id: taskId, creator: req.user.id },
+        {
+          $set: {
+            title: title,
+            status: status,
+            description: description,
+            dueDate: dueDate,
+            assignees: assignees,
+          },
         }
-    } catch (error) {
-        console.error("Error occoured to delete task", error);
-        return res.status(500).json({"error":"Error occured to delete task"})
+      );
     }
-}
+
+    return res.status(202).json({ message: "Successfully updated task" });
+  } catch (error) {
+    console.error("error occoured to update task");
+  }
+};
+
+export const deleteTask = async (req: any, res: any) => {
+  try {
+    const taskId = req.params.id;
+    if (req.user.role === "admin") {
+      await Task.findOneAndDelete({ id: taskId });
+      return res.status(202).json({ message: "Successfully deleted task" });
+    } else {
+      await Task.findOneAndDelete({ id: taskId, creator: req.user.id });
+      return res.status(202).json({ message: "Successfully deleted task" });
+    }
+  } catch (error) {
+    console.error("Error occoured to delete task", error);
+    return res.status(500).json({ error: "Error occured to delete task" });
+  }
+};

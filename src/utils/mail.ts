@@ -1,6 +1,7 @@
 import WebSocket from 'ws';
 import nodemailer from 'nodemailer';
-
+import dotenv from "dotenv";
+dotenv.config()
 const wss = new WebSocket.Server({ port: 8080 });
 
 // Email configuration
@@ -9,8 +10,8 @@ const emailConfig = {
   port: 587,
   secure: false, // or 'STARTTLS'
   auth: {
-    user: 'angajalavikashkumar@gmail.com',
-    pass: 'nwrzlfrfngjulylq'
+    user: process.env.EMAIL,
+    pass: process.env.EMAIL_PASSWORD
   }
 };
 

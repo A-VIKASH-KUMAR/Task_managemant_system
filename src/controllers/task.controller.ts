@@ -1,7 +1,8 @@
 import Task from "../models/task.model";
 import { v4 } from "uuid";
-import user from "../models/user.model";
 import Audit from "../models/audit.model";
+import { sendEmail } from "../utils/mail";
+import User from "../models/user.model";
 export const createTask = async (req: any, res: any) => {
   try {
     const { title, description, dueDate, assignees } = req.body;
@@ -20,7 +21,20 @@ export const createTask = async (req: any, res: any) => {
       dueDate,
       assignees,
     });
-    await Audit.create({userId:req.user.id, actionType:"create_task"})
+    assignees.push(req.user.id);
+    await Audit.create({ userId: req.user.id, actionType: "create_task" });
+    const userToEmails = await User.find(
+      { id: { $in: assignees } },
+      { email: 1 }
+    );
+    const messageData = {
+      to: userToEmails,
+      subject: `Task got created with title ${title}`,
+      text: `${req.user.name} created a task`,
+    };
+    const emailResponse = await sendEmail(messageData);
+    console.log("email response", emailResponse);
+
     const createTaskResponse = {
       id: createtask.id,
       title: createtask.title,
@@ -59,8 +73,10 @@ export const getTasks = async (req: any, res: any) => {
         dueDate: 1,
         assignees: 1,
         creator: 1,
-      }).skip(req.query.page - 1).limit(req.query.limit);
-      await Audit.create({userId:req.user.id, actionType:"get_tasks"})
+      })
+        .skip(req.query.page - 1)
+        .limit(req.query.limit);
+      await Audit.create({ userId: req.user.id, actionType: "get_tasks" });
     } else {
       if (req.query.search && req.query.search !== null) {
         filterObj["title"] = { $regex: req.query.search, $options: "i" };
@@ -82,9 +98,9 @@ export const getTasks = async (req: any, res: any) => {
           creator: 1,
         }
       );
-      await Audit.create({userId:req.user.id, actionType:"get_tasks"})
+      await Audit.create({ userId: req.user.id, actionType: "get_tasks" });
     }
-    
+
     return res
       .status(200)
       .json({ message: "successfully fetched tasks list", data: tasks });
@@ -112,13 +128,11 @@ export const getTaskById = async (req: any, res: any) => {
         assignees: 1,
       }
     );
-    await Audit.create({userId:req.user.id, actionType:"get_task_by_id"})
-    return res
-      .status(200)
-      .json({
-        message: "successfully fetched task details",
-        data: taskDetails,
-      });
+    await Audit.create({ userId: req.user.id, actionType: "get_task_by_id" });
+    return res.status(200).json({
+      message: "successfully fetched task details",
+      data: taskDetails,
+    });
   } catch (error) {
     console.error("Error occoured to fetch task by id", error);
     return res
@@ -144,7 +158,20 @@ export const updateTask = async (req: any, res: any) => {
           },
         }
       );
-      await Audit.create({userId:req.user.id, actionType:"update_task"})
+      await Audit.create({ userId: req.user.id, actionType: "update_task" });
+      assignees.push(req.user.id);
+      const userToEmails = await User.find(
+        { id: { $in: assignees } },
+        { email: 1 }
+      );
+      const messageData = {
+        to: userToEmails,
+        subject: `Task  with id ${req.params.id} got Updated with title ${title}`,
+        text: `${req.user.name} updated a task with id ${req.params.id}`,
+      };
+      const emailResponse = await sendEmail(messageData);
+      console.log("update response", emailResponse);
+      
     } else {
       await Task.findOneAndUpdate(
         { id: taskId, creator: req.user.id },
@@ -158,7 +185,19 @@ export const updateTask = async (req: any, res: any) => {
           },
         }
       );
-      await Audit.create({userId:req.user.id, actionType:"update_task"})
+      await Audit.create({ userId: req.user.id, actionType: "update_task" });
+      const userToEmails = await User.find(
+        { id: { $in: assignees } },
+        { email: 1 }
+      );
+      const messageData = {
+        to: userToEmails,
+        subject: `Task  with id ${req.params.id} got Updated with title ${title}`,
+        text: `${req.user.name} created a task`,
+      };
+      const emailResponse = await sendEmail(messageData);
+      console.log("email response else", emailResponse);
+      
     }
 
     return res.status(202).json({ message: "Successfully updated task" });
@@ -170,13 +209,30 @@ export const updateTask = async (req: any, res: any) => {
 export const deleteTask = async (req: any, res: any) => {
   try {
     const taskId = req.params.id;
+    const taskData = await Task.findOne(
+      { id: req.params.id },
+      { assignees: 1, _id: 0, id: 1, title:1}
+    );
+    const assignees:any = taskData?.assignees
+    const title: any = taskData?.title 
     if (req.user.role === "admin") {
       await Task.findOneAndDelete({ id: taskId });
-      await Audit.create({userId:req.user.id, actionType:"delete_task"})
+      await Audit.create({ userId: req.user.id, actionType: "delete_task" });
+      assignees.push(req.user.id);
+      const userToEmails = await User.find(
+        { id: { $in: assignees } },
+        { email: 1 }
+      );
+      const messageData = {
+        to: userToEmails,
+        subject: `Task  with id ${req.params.id} got deleted with title ${title}}`,
+        text: `${req.user.name} deleted a task called ${title}`,
+      };
+      const emailResponse = await sendEmail(messageData);
       return res.status(202).json({ message: "Successfully deleted task" });
     } else {
       await Task.findOneAndDelete({ id: taskId, creator: req.user.id });
-      await Audit.create({userId:req.user.id, actionType:"delete_task"})
+      await Audit.create({ userId: req.user.id, actionType: "delete_task" });
       return res.status(202).json({ message: "Successfully deleted task" });
     }
   } catch (error) {

@@ -4,7 +4,8 @@ import jwt from "jsonwebtoken";
 interface UserData {
   id?: string;
   email?: string;
-  role:string
+  role:string;
+  name:string;
 }
 
 type Request = {
@@ -15,6 +16,7 @@ export default function (req: Request, res: any, userData: UserData) {
   let jwtSignValue: any = {
     id: userData.id,
     email: userData.email,
+    name:userData.name,
     role:userData.role
   };
 

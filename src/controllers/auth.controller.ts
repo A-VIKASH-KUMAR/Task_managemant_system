@@ -52,9 +52,9 @@ export const register = async (req: any, res: any) => {
 
 // Function to login
 export const login = async (req: any, res: any) => {
-  const { username, password } = req.body;
+  const { email, password } = req.body;
 
-  const userIfExists: any = await User.findOne({ username });
+  const userIfExists: any = await User.findOne({ email });
   if (!userIfExists) {
     return res.status(500).json({ error: "invalid username" });
   }
@@ -83,3 +83,13 @@ export const login = async (req: any, res: any) => {
     refresh,
   });
 };
+
+export const getUsers = async (req:any, res:any) => {
+    try {
+        const usersData = await User.find({}, {name:1,_id:0, id:1,email:1, role:1})
+        return res.status(200).json({"message":"successfully fetched users data", "data":usersData})
+    } catch (error) {
+        console.error("Error occoured to fetch sers list", error);
+        return res.status(500).json({"error":"Error occoured to fetch users", "error message":error})
+    }
+}

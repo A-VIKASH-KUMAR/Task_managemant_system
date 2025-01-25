@@ -1,5 +1,5 @@
 import express from "express";
-// import todoRoute from "./routes/todo.route";
+import taskRoute from "./routes/task.route";
 import authRoute from "./routes/auth.route"
 import dotenv from "dotenv";
 import bodyParser from "body-parser";
@@ -23,4 +23,4 @@ connectDb().then(() => {
 
 app.use(express.json());
 app.use("/api/auth",  authRoute);
-// app.use("/api", isAuthenticate, todoRoute);
+app.use("/api", isAuthenticate, taskRoute);

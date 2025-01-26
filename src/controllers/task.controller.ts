@@ -233,6 +233,17 @@ export const deleteTask = async (req: any, res: any) => {
     } else {
       await Task.findOneAndDelete({ id: taskId, creator: req.user.id });
       await Audit.create({ userId: req.user.id, actionType: "delete_task" });
+      assignees.push(req.user.id);
+      const userToEmails = await User.find(
+        { id: { $in: assignees } },
+        { email: 1 }
+      );
+      const messageData = {
+        to: userToEmails,
+        subject: `Task  with id ${req.params.id} got deleted with title ${title}}`,
+        text: `${req.user.name} deleted a task called ${title}`,
+      };
+      const emailResponse = await sendEmail(messageData);
       return res.status(202).json({ message: "Successfully deleted task" });
     }
   } catch (error) {
